@@ -1,4 +1,5 @@
 // Microsoft Forms content script
+import { findBestMatchingOption, findCheckboxOptionsToSelect } from './form-utils';
 
 // Define types for the messages and responses
 interface AutoAnswerMessage {
@@ -17,11 +18,6 @@ interface ChatGPTResponse {
 
 interface SendResponseCallback {
   (response?: any): void;
-}
-
-interface QuestionOption {
-  element: Element;
-  text: string;
 }
 
 // Listen for messages from the popup
@@ -131,105 +127,5 @@ async function processMicrosoftFormQuestion(questionElement: Element): Promise<v
     
   } catch (error) {
     console.error('Error processing question:', error);
-  }
-}
-
-function findBestMatchingOption(options: Element[], answer: string): Element | null {
-  try {
-    const answerLower = answer.toLowerCase();
-    
-    // Get option text for each option
-    const optionsWithText: QuestionOption[] = options.map(opt => {
-      const labelEl = opt.querySelector('.office-form-question-choice-text');
-      return {
-        element: opt,
-        text: labelEl ? labelEl.textContent?.trim().toLowerCase() || '' : ''
-      };
-    });
-    
-    // Simple algorithm: check if any option text is contained in the answer
-    for (const option of optionsWithText) {
-      if (answerLower.includes(option.text)) {
-        return option.element;
-      }
-    }
-    
-    // If no direct match, look for key terms
-    const answerWords = answerLower.split(/\s+/);
-    let bestMatch: Element | null = null;
-    let bestMatchCount = 0;
-    
-    for (const option of optionsWithText) {
-      const optionWords = option.text.split(/\s+/);
-      let matchCount = 0;
-      
-      for (const word of optionWords) {
-        if (word.length > 3 && answerWords.includes(word)) { // Consider only words longer than 3 chars
-          matchCount++;
-        }
-      }
-      
-      if (matchCount > bestMatchCount) {
-        bestMatchCount = matchCount;
-        bestMatch = option.element;
-      }
-    }
-    
-    return bestMatch;
-  } catch (error) {
-    console.error('Error finding best matching option:', error);
-    return null;
-  }
-}
-
-function findCheckboxOptionsToSelect(options: Element[], answer: string): Element[] {
-  try {
-    const answerLower = answer.toLowerCase();
-    const optionsToSelect: Element[] = [];
-    
-    // Get option text for each option
-    const optionsWithText: QuestionOption[] = options.map(opt => {
-      const labelEl = opt.querySelector('.office-form-question-choice-text');
-      return {
-        element: opt,
-        text: labelEl ? labelEl.textContent?.trim().toLowerCase() || '' : ''
-      };
-    });
-    
-    // Check each option against the answer
-    for (const option of optionsWithText) {
-      if (answerLower.includes(option.text)) {
-        optionsToSelect.push(option.element);
-      }
-    }
-    
-    // If we didn't find any matches, try a more advanced approach
-    if (optionsToSelect.length === 0) {
-      // Look for keywords in answer that might suggest multiple selections
-      const keywords = ['all', 'both', 'multiple', 'several', 'and'];
-      const hasMultipleIndicator = keywords.some(keyword => answerLower.includes(keyword));
-      
-      if (hasMultipleIndicator) {
-        // If answer suggests multiple selections, check each option against the answer
-        for (const option of optionsWithText) {
-          const optionWords = option.text.split(/\s+/);
-          for (const word of optionWords) {
-            if (word.length > 3 && answerLower.includes(word)) {
-              optionsToSelect.push(option.element);
-              break;
-            }
-          }
-        }
-      } else {
-        // If still no matches, just pick one that seems most likely
-        const bestMatch = findBestMatchingOption(options, answer);
-        if (bestMatch) optionsToSelect.push(bestMatch);
-      }
-    }
-    
-    return optionsToSelect;
-  } catch (error) {
-    console.error('Error finding checkbox options to select:', error);
-    return [];
   }
 }
