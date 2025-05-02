@@ -138,19 +138,43 @@ async function processGoogleFormQuestion(questionElement: Element): Promise<void
     
     console.log('Question type detected:', questionType);
     
+    // If question type is unknown, try to determine it by looking for common patterns
+    if (questionType === 'unknown') {
+      // Look for radio buttons with different selectors
+      const radioOptions = questionElement.querySelectorAll('.freebirdFormviewerViewItemsRadioOptionContainer') || 
+                          questionElement.querySelectorAll('.appsMaterialWizToggleRadiogroupElContainer') ||
+                          questionElement.querySelectorAll('[role="radio"]');
+      
+      if (radioOptions.length > 0) {
+        questionType = 'multiple-choice';
+        console.log('Updated question type to multiple-choice based on radio elements detection');
+      } else {
+        // Look for checkbox elements
+        const checkboxOptions = questionElement.querySelectorAll('.freebirdFormviewerViewItemsCheckboxOptionContainer') ||
+                               questionElement.querySelectorAll('.appsMaterialWizToggleCheckboxGroupElContainer') ||
+                               questionElement.querySelectorAll('[role="checkbox"]');
+        
+        if (checkboxOptions.length > 0) {
+          questionType = 'checkbox';
+          console.log('Updated question type to checkbox based on checkbox elements detection');
+        }
+      }
+    }
+    
     // Query ChatGPT for the answer
+    console.log('Sending question to ChatGPT:', questionText);
     const response = await chrome.runtime.sendMessage({
       action: 'queryChatGPT',
       question: questionText
-    } as ChatGPTQueryMessage) as ChatGPTResponse;
+    } as ChatGPTQueryMessage);
     
     if (!response || !response.success) {
-      console.error('Failed to get answer from ChatGPT');
+      console.error('Failed to get answer from ChatGPT:', response);
       return;
     }
     
     const answer = response.answer;
-    console.log('Got answer:', answer);
+    console.log('Got answer from ChatGPT:', answer);
     
     // Fill in the answer based on question type
     if (questionType === 'short-text' || questionType === 'paragraph') {

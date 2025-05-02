@@ -1,57 +1,112 @@
-// Listen for messages from content scripts
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'queryChatGPT') {
-    queryChatGPT(message.question)
-      .then(answer => {
-        sendResponse({ success: true, answer: answer });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error.toString() });
-      });
-    return true; // Required for async sendResponse
-  }
+"use strict";
+// Background script for handling ChatGPT API requests
+// Store the ChatGPT URL
+let chatgptUrl = '';
+// Listen for setting changes
+chrome.storage.local.get(['chatgptUrl'], (data) => {
+    if (data.chatgptUrl) {
+        chatgptUrl = data.chatgptUrl;
+        console.log('ChatGPT URL loaded:', chatgptUrl);
+    }
 });
-
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.chatgptUrl) {
+        chatgptUrl = changes.chatgptUrl.newValue;
+        console.log('ChatGPT URL updated:', chatgptUrl);
+    }
+});
+// Listen for messages from content scripts
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'queryChatGPT') {
+        console.log('Received request to query ChatGPT:', request.question);
+        if (!chatgptUrl) {
+            console.error('ChatGPT URL is not set');
+            sendResponse({ success: false, error: 'ChatGPT URL is not set' });
+            return true;
+        }
+        // Query ChatGPT and return the response
+        queryChatGPT(request.question)
+            .then(answer => {
+            console.log('Got answer from ChatGPT:', answer);
+            sendResponse({ success: true, answer });
+        })
+            .catch(error => {
+            console.error('Error querying ChatGPT:', error);
+            sendResponse({ success: false, error: error.toString() });
+        });
+        return true; // Required for async sendResponse
+    }
+});
+// Function to query ChatGPT using the shared URL
 async function queryChatGPT(question) {
-  try {
-    // Get the ChatGPT session URL from storage
-    const data = await chrome.storage.local.get(['chatgptUrl']);
-    if (!data.chatgptUrl) {
-      throw new Error('ChatGPT session URL not configured');
+    try {
+        // Extract the session ID from the URL
+        const sessionId = extractSessionId(chatgptUrl);
+        if (!sessionId) {
+            throw new Error('Invalid ChatGPT URL');
+        }
+        // Construct API endpoint for the shared conversation
+        const apiUrl = `https://chatgpt.com/api/shared/${sessionId}/conversation`;
+        // Send request to ChatGPT API
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: question,
+                conversation_id: sessionId,
+            }),
+        });
+        if (!response.ok) {
+            throw new Error(`ChatGPT API returned status ${response.status}`);
+        }
+        const data = await response.json();
+        // Extract the answer from the response
+        const answer = extractAnswerFromResponse(data);
+        return answer;
     }
-    
-    // Extract the session ID from the URL
-    const sessionId = data.chatgptUrl.split('/').pop();
-    
-    // For this extension, we'll use a simple technique to get answers
-    // from a publicly shared ChatGPT conversation
-    // In a real implementation, you might need to use an API or more advanced methods
-    
-    // Here we make a request to the shared conversation and extract the answer
-    const response = await fetch(`https://chatgpt.com/api/shared/${sessionId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: question,
-        conversation_id: sessionId
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get answer from ChatGPT');
+    catch (error) {
+        console.error('Error in queryChatGPT:', error);
+        // Fallback: Try to fetch the shared conversation page and extract the answer
+        return fetchSharedConversationPage(chatgptUrl, question);
     }
-
-    const data = await response.json();
-    return data.answer || 'No answer found';
-    
-    // Note: This is a simplified placeholder implementation
-    // The actual implementation would depend on how OpenAI's API for shared sessions works
-    // Since direct API access might not be possible with just a shared URL,
-    // users might need to provide API keys or use another integration method
-  } catch (error) {
-    console.error('Error querying ChatGPT:', error);
-    throw error;
-  }
+}
+// Extract session ID from ChatGPT shared URL
+function extractSessionId(url) {
+    const match = url.match(/https:\/\/chatgpt\.com\/share\/([a-zA-Z0-9-]+)/);
+    return match ? match[1] : null;
+}
+// Extract answer from API response
+function extractAnswerFromResponse(data) {
+    try {
+        // The structure of the response may vary
+        if (data.response && typeof data.response === 'string') {
+            return data.response;
+        }
+        else if (data.message && data.message.content && data.message.content.parts) {
+            return data.message.content.parts.join('\n');
+        }
+        else {
+            console.warn('Unexpected response structure:', data);
+            return 'Could not extract answer from response';
+        }
+    }
+    catch (error) {
+        console.error('Error extracting answer from response:', error);
+        return 'Error extracting answer';
+    }
+}
+// Fallback method: Try to fetch the shared conversation page and simulate asking a question
+async function fetchSharedConversationPage(url, question) {
+    try {
+        // This is a more complex approach that would require headless browser interaction
+        // or very specific knowledge of the ChatGPT web interface
+        // For now, return a helpful message
+        return `Sorry, I couldn't get an answer from ChatGPT for "${question}". Please check your shared URL and try again.`;
+    }
+    catch (error) {
+        console.error('Error in fetchSharedConversationPage:', error);
+        return 'Error communicating with ChatGPT';
+    }
 }

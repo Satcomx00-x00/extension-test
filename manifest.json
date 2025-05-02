@@ -5,12 +5,14 @@
   "description": "Automatically answers quiz questions in Google Forms and Microsoft Forms using ChatGPT",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://docs.google.com/forms/*",
     "https://forms.office.com/*",
-    "https://forms.microsoft.com/*"
+    "https://forms.microsoft.com/*",
+    "https://chatgpt.com/*"
   ],
   "action": {
     "default_popup": "popup.html"
