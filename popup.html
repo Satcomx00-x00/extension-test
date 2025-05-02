@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Auto Answerer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Form Quiz Auto Answerer</h1>
+    
+    <div class="form-group">
+      <label for="chatgpt-url">ChatGPT Session URL:</label>
+      <input type="text" id="chatgpt-url" 
+        placeholder="https://chatgpt.com/share/your-session-id">
+      <small>Enter a shared ChatGPT URL to use for answering questions</small>
+    </div>
+
+    <div class="form-group">
+      <button id="save-settings">Save Settings</button>
+    </div>
+
+    <div class="form-actions">
+      <button id="auto-answer" disabled>Auto Answer Form</button>
+      <div id="status-message"></div>
+    </div>
+
+    <div class="form-info">
+      <p>Supported platforms:</p>
+      <ul>
+        <li>Google Forms</li>
+        <li>Microsoft Forms</li>
+      </ul>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

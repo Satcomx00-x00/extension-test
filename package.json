@@ -1,0 +1,17 @@
+{
+  "name": "form-quiz-auto-answerer",
+  "version": "1.0.0",
+  "description": "Browser extension to automatically answer Google Forms and Microsoft Forms using ChatGPT",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.244",
+    "typescript": "^5.8.3"
+  },
+  "main": "background.js",
+  "keywords": []
+}
